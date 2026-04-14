@@ -57,8 +57,9 @@ Key variables to set:
 | `GROQ_API_KEY` | Groq API key (get one free at [console.groq.com](https://console.groq.com)) |
 | `GROQ_MODEL` | Llama model name (default: `llama3-70b-8192`) |
 | `DATABASE_URL` | Postgres connection string |
-| `SMTP_HOST` / `SMTP_PORT` | SMTP server (default: `smtp.gmail.com:587`) |
-| `SMTP_USER` / `SMTP_PASSWORD` | SMTP credentials (Gmail: use an App Password) |
+| `SMTP_HOST` / `SMTP_PORT` | SMTP server (default: `localhost:25` — local relay, no auth) |
+| `SMTP_TLS` | Enable STARTTLS; set `true` for external providers like Gmail (default: `false`) |
+| `SMTP_USER` / `SMTP_PASSWORD` | Credentials — leave blank for unauthenticated local relay |
 | `EMAIL_FROM` / `EMAIL_TO` | Sender and recipient email addresses |
 | `WATCHLIST` | Comma-separated tickers (default: `SPY,QQQ,IWM,VTI,XLK,XLF,XLE`) |
 | `TIMEZONE` | Timezone for timestamps (default: `America/New_York`) |
@@ -217,6 +218,49 @@ pytest -v
 ```
 
 Tests run without any external connections — Groq, SMTP, and Postgres are all mocked or bypassed.
+
+---
+
+## Email Delivery
+
+The notifier supports two modes — no code change required, just `.env` settings.
+
+### Option A — Unauthenticated local relay (recommended for VMs)
+
+Install Postfix once:
+
+```bash
+sudo apt install -y postfix
+# Choose "Internet Site" and enter your hostname when prompted
+```
+
+`.env` settings (these are the defaults — nothing extra to set):
+
+```ini
+SMTP_HOST=localhost
+SMTP_PORT=25
+SMTP_TLS=false
+SMTP_USER=
+SMTP_PASSWORD=
+EMAIL_FROM=market-agent@yourhostname
+EMAIL_TO=you@example.com
+```
+
+No authentication, no TLS, no app password needed.  Postfix relays outbound mail on your behalf.
+
+### Option B — Authenticated external relay (e.g. Gmail)
+
+```ini
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_TLS=true
+SMTP_USER=you@gmail.com
+SMTP_PASSWORD=your_app_password
+EMAIL_FROM=you@gmail.com
+EMAIL_TO=you@gmail.com
+```
+
+See **Gmail App Password Setup** below for how to generate `SMTP_PASSWORD`.
 
 ---
 

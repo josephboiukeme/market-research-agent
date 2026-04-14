@@ -26,8 +26,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://market_agent:changeme@localhost:5432/market_agent"
 
     # ── SMTP ──────────────────────────────────────────────────────────────────
-    smtp_host: str = "smtp.gmail.com"
-    smtp_port: int = 587
+    smtp_host: str = "localhost"
+    smtp_port: int = 25
+    smtp_tls: bool = False   # set True for STARTTLS (e.g. Gmail port 587)
     smtp_user: str = ""
     smtp_password: str = ""
     email_from: str = ""

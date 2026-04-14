@@ -150,25 +150,11 @@ def test_generate_report_dry_run() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Email notifier — no SMTP config should raise ValueError
+# Email notifier
 # ---------------------------------------------------------------------------
 
-def test_emailer_missing_config_raises() -> None:
-    from market_agent.notify.emailer import EmailNotifier
-
-    notifier = EmailNotifier(
-        host="smtp.example.com",
-        port=587,
-        user="",          # missing
-        password="",      # missing
-        email_from="",
-        email_to="someone@example.com",
-    )
-    with pytest.raises(ValueError, match="SMTP_USER"):
-        notifier.send("Test", "body")
-
-
 def test_emailer_missing_to_raises() -> None:
+    """EMAIL_TO must always be set regardless of auth mode."""
     from market_agent.notify.emailer import EmailNotifier
 
     notifier = EmailNotifier(
@@ -181,6 +167,76 @@ def test_emailer_missing_to_raises() -> None:
     )
     with pytest.raises(ValueError, match="EMAIL_TO"):
         notifier.send("Test", "body")
+
+
+def test_emailer_partial_credentials_raises() -> None:
+    """Supplying only one of user/password should raise."""
+    from market_agent.notify.emailer import EmailNotifier
+
+    notifier = EmailNotifier(
+        host="smtp.example.com",
+        port=587,
+        user="user@example.com",
+        password="",   # missing partner
+        email_from="user@example.com",
+        email_to="recipient@example.com",
+    )
+    with pytest.raises(ValueError, match="both"):
+        notifier.send("Test", "body")
+
+
+def test_emailer_unauthenticated_connects_without_login(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No credentials → STARTTLS and LOGIN must not be called."""
+    from unittest.mock import MagicMock, patch
+
+    from market_agent.notify.emailer import EmailNotifier
+
+    mock_smtp = MagicMock()
+    mock_smtp.__enter__ = MagicMock(return_value=mock_smtp)
+    mock_smtp.__exit__ = MagicMock(return_value=False)
+
+    with patch("smtplib.SMTP", return_value=mock_smtp):
+        notifier = EmailNotifier(
+            host="localhost",
+            port=25,
+            tls=False,
+            user="",
+            password="",
+            email_from="agent@localhost",
+            email_to="recipient@example.com",
+        )
+        notifier.send("Subject", "body")
+
+    mock_smtp.starttls.assert_not_called()
+    mock_smtp.login.assert_not_called()
+    mock_smtp.sendmail.assert_called_once()
+
+
+def test_emailer_authenticated_uses_starttls(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Credentials present + tls=True → STARTTLS and LOGIN must be called."""
+    from unittest.mock import MagicMock, patch
+
+    from market_agent.notify.emailer import EmailNotifier
+
+    mock_smtp = MagicMock()
+    mock_smtp.__enter__ = MagicMock(return_value=mock_smtp)
+    mock_smtp.__exit__ = MagicMock(return_value=False)
+
+    with patch("smtplib.SMTP", return_value=mock_smtp):
+        notifier = EmailNotifier(
+            host="smtp.gmail.com",
+            port=587,
+            tls=True,
+            user="user@gmail.com",
+            password="app_password",
+            email_from="user@gmail.com",
+            email_to="recipient@example.com",
+        )
+        notifier.send("Subject", "body")
+
+    mock_smtp.starttls.assert_called_once()
+    mock_smtp.login.assert_called_once_with("user@gmail.com", "app_password")
+    mock_smtp.sendmail.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
