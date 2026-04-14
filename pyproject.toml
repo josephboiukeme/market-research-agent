@@ -1,0 +1,22 @@
+[tool]
+name = "market-research-agent"
+
+[project]
+name = "market-research-agent"
+requires-python = ">=3.11"
+
+[dependencies]
+groq = "*"
+python-dotenv = "*"
+requests = "*"
+pandas = "*"
+numpy = "*"
+psycopg[binary] = "*"
+sqlalchemy = "*"
+pydantic = "*"
+rich = "*"
+tenacity = "*"
+typer = "*"
+
+[options.extras]
+dev = ["ruff", "pytest"]
