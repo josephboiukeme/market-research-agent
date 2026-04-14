@@ -110,15 +110,21 @@ def fetch_eod_prices(
 
 
 def _row_to_record(row: pd.Series, ticker: str) -> dict:
+    def _float(val: object) -> float:
+        return float(val) if val is not None and not (isinstance(val, float) and pd.isna(val)) else 0.0
+
+    def _int(val: object) -> int:
+        return int(val) if val is not None and not (isinstance(val, float) and pd.isna(val)) else 0
+
     return {
         "ticker": ticker.upper(),
         "date": row.get("date"),
-        "open": float(row.get("open", 0) or 0),
-        "high": float(row.get("high", 0) or 0),
-        "low": float(row.get("low", 0) or 0),
-        "close": float(row.get("close", 0) or 0),
-        "volume": int(row.get("volume", 0) or 0),
-        "pct_change": float(row.get("pct_change", 0) or 0),
+        "open": _float(row.get("open")),
+        "high": _float(row.get("high")),
+        "low": _float(row.get("low")),
+        "close": _float(row.get("close")),
+        "volume": _int(row.get("volume")),
+        "pct_change": _float(row.get("pct_change")),
     }
 
 

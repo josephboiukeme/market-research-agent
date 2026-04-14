@@ -106,8 +106,10 @@ class GroqClient:
         try:
             return json.loads(raw)
         except json.JSONDecodeError:
-            # strip markdown fences if the model added them
-            cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+            # Use regex to extract JSON content from optional markdown fences
+            import re
+            match = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw)
+            cleaned = match.group(1).strip() if match else raw.strip()
             return json.loads(cleaned)
 
     # ------------------------------------------------------------------

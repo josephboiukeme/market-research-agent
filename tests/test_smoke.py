@@ -229,10 +229,6 @@ def test_cli_run_eod_dry_run_no_db(monkeypatch: pytest.MonkeyPatch) -> None:
 
     from market_agent.cli import app
 
-    # Stub out pipeline to avoid network/db calls
-    mock_pipeline = MagicMock(return_value="# stub report")
-    monkeypatch.setattr("market_agent.cli.run_eod_cmd.__wrapped__", mock_pipeline, raising=False)
-
     # Patch the actual pipeline function that the command calls
     with patch("market_agent.pipeline.init_db"), \
          patch("market_agent.pipeline.get_session") as mock_sess, \

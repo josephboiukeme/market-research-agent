@@ -85,7 +85,9 @@ def score_tickers(
     def _minmax(series: pd.Series) -> pd.Series:
         lo, hi = series.min(), series.max()
         if hi == lo:
-            return pd.Series(np.zeros(len(series)), index=series.index)
+            # All values are identical: assign 0.5 (neutral) so this component
+            # neither penalises nor rewards any ticker relative to the others.
+            return pd.Series(np.full(len(series), 0.5), index=series.index)
         return (series - lo) / (hi - lo)
 
     norm_move = _minmax(rows["pct_change"].abs())
