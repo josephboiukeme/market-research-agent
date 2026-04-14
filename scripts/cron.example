@@ -1,0 +1,21 @@
+# scripts/cron.example — Example crontab entries for the market-research-agent.
+#
+# US/Eastern 4:30 PM = 21:30 UTC (EST, UTC-5) or 20:30 UTC (EDT, UTC-4).
+# Using 21:30 UTC covers most of the year (EST); adjust to 20:30 UTC in summer.
+#
+# To install: run `crontab -e` and paste the line(s) below.
+# Replace /home/youruser/market-research-agent with the actual path to the repo.
+#
+# ┌────────── minute (0–59)
+# │ ┌──────── hour (0–23) UTC
+# │ │ ┌────── day of month (1–31)
+# │ │ │ ┌──── month (1–12)
+# │ │ │ │ ┌── day of week (1=Mon … 5=Fri)
+# │ │ │ │ │
+# ─ ─ ─ ─ ─
+
+# Run EOD pipeline Monday–Friday at 4:30 PM Eastern (21:30 UTC / EST)
+30 21 * * 1-5 /home/youruser/market-research-agent/scripts/run_eod.sh >> /home/youruser/market-research-agent/logs/eod.log 2>&1
+
+# Optional: Run in dry-run mode (no Groq API calls, no email) for testing
+# 35 21 * * 1-5 /home/youruser/market-research-agent/scripts/run_eod.sh --dry-run --no-email >> /home/youruser/market-research-agent/logs/eod_dry.log 2>&1
