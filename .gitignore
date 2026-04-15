@@ -27,6 +27,12 @@ logs/*.txt
 # keep the directory
 !logs/.gitkeep
 
+# Runtime data directories (kept via artifacts in CI; ignored locally)
+data/*
+!data/.gitkeep
+out/*
+!out/.gitkeep
+
 # Database / migrations artefacts
 *.db
 *.sqlite3

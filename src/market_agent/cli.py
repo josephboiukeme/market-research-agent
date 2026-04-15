@@ -1,7 +1,7 @@
 """CLI entry-point (Typer).
 
 Commands:
-    market-agent run-eod [--as-of YYYY-MM-DD] [--dry-run] [--no-email]
+    market-agent run-eod [--as-of YYYY-MM-DD] [--dry-run] [--no-email] [--output PATH]
     market-agent db init
     market-agent feedback [--run-id RUN_ID] [--ticker TICKER]
                           [--action ACTION] [--rating 1-5] [--notes NOTES]
@@ -9,6 +9,7 @@ Commands:
 
 import logging
 from datetime import date
+from pathlib import Path
 
 import typer
 from rich.console import Console
@@ -52,6 +53,11 @@ def run_eod_cmd(
         "--top-n",
         help="Number of focus tickers to highlight in the report.",
     ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        help="Write the markdown report to this file path (in addition to printing it).",
+    ),
 ) -> None:
     """Run the end-of-day market research pipeline."""
     from market_agent.pipeline import run_eod
@@ -65,7 +71,7 @@ def run_eod_cmd(
             raise typer.Exit(1)
 
     try:
-        run_eod(
+        report_md = run_eod(
             as_of=ref_date,
             dry_run=dry_run,
             send_email=not no_email,
@@ -75,6 +81,11 @@ def run_eod_cmd(
         console.print(f"[bold red]Pipeline failed:[/bold red] {exc}")
         logging.exception("Unhandled pipeline error")
         raise typer.Exit(1)
+
+    if output and report_md:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(report_md, encoding="utf-8")
+        console.print(f"[green]✓ Report saved to {output}[/green]")
 
 
 # ── db ────────────────────────────────────────────────────────────────────────
