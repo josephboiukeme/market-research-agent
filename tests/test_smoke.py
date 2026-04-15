@@ -309,3 +309,22 @@ def test_cli_run_eod_dry_run_no_db(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Should not crash
     assert result.exit_code == 0 or "Pipeline failed" not in (result.output or "")
+
+
+def test_cli_run_eod_output_flag(tmp_path: pytest.TempPathFactory) -> None:
+    """--output should write the report markdown to the specified file."""
+    from typer.testing import CliRunner
+
+    from market_agent.cli import app
+
+    expected_report = "# EOD Report\n\nThis is a stub report."
+    output_file = tmp_path / "sub" / "eod_report.md"
+
+    with patch("market_agent.pipeline.run_eod", return_value=expected_report):
+        runner = CliRunner()
+        result = runner.invoke(app, ["run-eod", "--no-email", "--output", str(output_file)])
+
+    assert result.exit_code == 0
+    assert output_file.exists(), "report file was not created"
+    assert output_file.read_text(encoding="utf-8") == expected_report
+    assert str(output_file) in result.output or "Report saved" in result.output
