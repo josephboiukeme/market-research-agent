@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     groq_max_retries: int = 3
 
     # ── Database ──────────────────────────────────────────────────────────────
-    database_url: str = "postgresql+psycopg://market_agent:changeme@localhost:5432/market_agent"
+    database_url: str = "sqlite:///./data/market_agent.db"
 
     # ── SMTP ──────────────────────────────────────────────────────────────────
     smtp_host: str = "localhost"

@@ -1,0 +1,73 @@
+name: EOD Market Research Agent
+
+on:
+  schedule:
+    # Weekdays at 21:00 UTC (≈ 30 min after US market close year-round)
+    # DST note: 21:00 UTC = 5:00 pm ET during EDT (Mar–Nov)
+    #                      = 4:00 pm ET during EST (Nov–Mar)
+    - cron: "0 21 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  eod:
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: sqlite:///./data/market_agent.db
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GROQ_MODEL: ${{ vars.GROQ_MODEL || 'llama3-70b-8192' }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_TLS: ${{ secrets.SMTP_TLS }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+      EMAIL_TO: ${{ secrets.EMAIL_TO }}
+      WATCHLIST: ${{ vars.WATCHLIST || 'SPY,QQQ,IWM,VTI,XLK,XLF,XLE' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Create output directories
+        run: mkdir -p data out
+
+      # ── Restore prior SQLite DB (if any) ─────────────────────────────────────
+      - name: Download latest DB artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: market-agent-db
+          path: data/
+        continue-on-error: true   # first run has no prior artifact
+
+      # ── Run EOD pipeline ──────────────────────────────────────────────────────
+      - name: Run EOD pipeline
+        run: python -m market_agent.cli run-eod --output out/eod_report.md
+
+      # ── Upload artifacts ──────────────────────────────────────────────────────
+      - name: Upload SQLite DB
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-agent-db
+          path: data/market_agent.db
+          retention-days: 30
+
+      - name: Upload EOD report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eod-report
+          path: out/eod_report.md
+          retention-days: 30

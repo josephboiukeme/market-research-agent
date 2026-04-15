@@ -15,11 +15,14 @@ _SessionLocal = None
 def get_engine():
     global _engine
     if _engine is None:
-        _engine = create_engine(
-            settings.database_url,
-            pool_pre_ping=True,
-            echo=False,
-        )
+        url = settings.database_url
+        kwargs: dict = {"echo": False}
+        if url.startswith("sqlite"):
+            # SQLite doesn't support pool_pre_ping; needs check_same_thread=False
+            kwargs["connect_args"] = {"check_same_thread": False}
+        else:
+            kwargs["pool_pre_ping"] = True
+        _engine = create_engine(url, **kwargs)
     return _engine
 
 

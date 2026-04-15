@@ -56,7 +56,7 @@ Key variables to set:
 |---|---|
 | `GROQ_API_KEY` | Groq API key (get one free at [console.groq.com](https://console.groq.com)) |
 | `GROQ_MODEL` | Llama model name (default: `llama3-70b-8192`) |
-| `DATABASE_URL` | Postgres connection string |
+| `DATABASE_URL` | Database connection string (default: `sqlite:///./data/market_agent.db`) |
 | `SMTP_HOST` / `SMTP_PORT` | SMTP server (default: `localhost:25` — local relay, no auth) |
 | `SMTP_TLS` | Enable STARTTLS; set `true` for external providers like Gmail (default: `false`) |
 | `SMTP_USER` / `SMTP_PASSWORD` | Credentials — leave blank for unauthenticated local relay |
@@ -64,7 +64,18 @@ Key variables to set:
 | `WATCHLIST` | Comma-separated tickers (default: `SPY,QQQ,IWM,VTI,XLK,XLF,XLE`) |
 | `TIMEZONE` | Timezone for timestamps (default: `America/New_York`) |
 
-### 4 · Set up Postgres
+### 4 · Set up the database
+
+**SQLite (default — no additional setup needed):**
+
+The app defaults to SQLite at `data/market_agent.db`.  The `data/` directory is created
+automatically on first run.
+
+```bash
+market-agent db init   # creates data/market_agent.db with all tables
+```
+
+**Postgres (optional — for production/VM use):**
 
 ```bash
 sudo -u postgres psql << 'SQL'
@@ -73,17 +84,15 @@ CREATE DATABASE market_agent OWNER market_agent;
 SQL
 ```
 
-Update `DATABASE_URL` in `.env` to match your credentials.
+Update `DATABASE_URL` in `.env` to:
 
-### 5 · Initialise the database
-
-```bash
-market-agent db init
-# or, using the raw SQL:
-# psql -U market_agent -d market_agent -f db/init.sql
+```
+DATABASE_URL=postgresql+psycopg://market_agent:changeme@localhost:5432/market_agent
 ```
 
-### 6 · Run once (dry-run — no Groq API calls, no email)
+Then run `market-agent db init` to create the tables.
+
+### 5 · Run once (dry-run — no Groq API calls, no email)
 
 ```bash
 market-agent run-eod --dry-run --no-email
@@ -91,7 +100,7 @@ market-agent run-eod --dry-run --no-email
 
 This fetches real market data and renders a report with stubbed LLM text.
 
-### 7 · Run for real
+### 6 · Run for real
 
 ```bash
 market-agent run-eod
@@ -99,7 +108,7 @@ market-agent run-eod
 
 Requires `GROQ_API_KEY`, `SMTP_USER`, `SMTP_PASSWORD`, and `EMAIL_TO` to be set.
 
-### 8 · Record feedback
+### 7 · Record feedback
 
 ```bash
 # Record what you did after reviewing the report
@@ -108,7 +117,62 @@ market-agent feedback --action "held SPY" --ticker SPY --rating 4 --notes "Good 
 
 ---
 
-## Scheduling with cron (US/Eastern)
+## Hosting on GitHub Actions (SQLite persistence)
+
+You can run the agent on a weekday schedule entirely within GitHub Actions — no VM required.
+Behavior memory (SQLite DB) is persisted between runs via **GitHub Actions artifacts**.
+
+### How it works
+
+1. At the start of each run, the workflow downloads the latest `market-agent-db` artifact
+   (which contains `data/market_agent.db`) if one exists.
+2. The EOD pipeline runs and writes/updates the SQLite database at `data/market_agent.db`.
+3. After the pipeline, both the DB and the generated report (`out/eod_report.md`) are uploaded
+   as new artifacts with a 30-day retention window.
+
+### Schedule
+
+The default cron schedule is **21:00 UTC on weekdays (Monday–Friday)**:
+
+- During **EDT (Mar–Nov)**: 21:00 UTC ≈ 5:00 pm ET (≈30 min after US market close)
+- During **EST (Nov–Mar)**: 21:00 UTC ≈ 4:00 pm ET (≈30 min after US market close)
+
+> **DST caveat**: UTC doesn't observe daylight saving time, so the run will always be at 21:00 UTC.
+> This means it arrives ~30 min after the 4:30 pm ET close in both EDT and EST — no change needed.
+
+You can also trigger it manually via **Actions → EOD Market Research Agent → Run workflow**.
+
+### Required GitHub Secrets
+
+Go to **Settings → Secrets and variables → Actions → New repository secret** and add:
+
+| Secret name | Description |
+|---|---|
+| `GROQ_API_KEY` | Groq API key (get one free at [console.groq.com](https://console.groq.com)) |
+| `SMTP_HOST` | SMTP server hostname (e.g. `smtp.gmail.com`) |
+| `SMTP_PORT` | SMTP port (e.g. `587`) |
+| `SMTP_TLS` | `true` or `false` |
+| `SMTP_USER` | SMTP username / email address |
+| `SMTP_PASSWORD` | SMTP password or App Password |
+| `EMAIL_FROM` | Sender address (e.g. `you@gmail.com`) |
+| `EMAIL_TO` | Recipient address for the EOD report |
+
+Optional **repository variables** (Settings → Secrets and variables → Actions → Variables):
+
+| Variable | Default | Description |
+|---|---|---|
+| `GROQ_MODEL` | `llama3-70b-8192` | Groq / Llama model name |
+| `WATCHLIST` | `SPY,QQQ,IWM,VTI,XLK,XLF,XLE` | Comma-separated tickers |
+
+### Enabling the workflow
+
+The workflow file lives at `.github/workflows/eod.yml`.  Once pushed to `main` with valid secrets,
+it will run automatically on the schedule above.  You can review logs and download artifacts from
+the **Actions** tab in the GitHub repository.
+
+---
+
+
 
 US Eastern 4:30 PM = **21:30 UTC** (EST) / **20:30 UTC** (EDT).
 
@@ -148,12 +212,13 @@ market-agent run-eod [OPTIONS]
     --dry-run        Use stubbed LLM output; skip Groq API calls
     --no-email       Generate report but do not send email
     --top-n INT      Number of focus tickers (default: 3)
+    --output PATH    Write the markdown report to this file path
 ```
 
 ### `db init`
 
 ```
-market-agent db init   # Creates all Postgres tables (idempotent)
+market-agent db init   # Creates all database tables (idempotent; works with SQLite and Postgres)
 ```
 
 ### `feedback`
